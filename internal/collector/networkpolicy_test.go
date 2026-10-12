@@ -2,6 +2,7 @@ package collector
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/redhat-developer/rhdh-must-gather/internal/kube"
 )
@@ -96,6 +98,9 @@ func TestNetworkPolicies_TargetedNamespacesCollectFiles(t *testing.T) {
 	summary := mustRead(t, filepath.Join(dir, "network-policies", "summary.txt"))
 	if !strings.Contains(summary, ns) {
 		t.Errorf("summary missing namespace %q", ns)
+	}
+	if !strings.Contains(summary, "redhat-developer-hub") {
+		t.Error("summary should mention the Helm chart default name")
 	}
 	if !strings.Contains(summary, "How to troubleshoot") {
 		t.Error("summary missing troubleshooting section")
@@ -183,5 +188,49 @@ func TestNetworkPolicies_AutoDetectMergesOrchestrator(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("knative-serving appeared %d times, want 1", count)
+	}
+}
+
+func TestNetworkPolicies_ListErrorStillCollectsNamespaceDiagnostics(t *testing.T) {
+	dir := t.TempDir()
+	ns := "rhdh-prod"
+	cs := fakeclientset.NewSimpleClientset(
+		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ns}},
+		&corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Name: "backstage", Namespace: ns,
+			Labels: map[string]string{"app.kubernetes.io/name": "developer-hub"},
+		}},
+		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "backstage", Namespace: ns}},
+	)
+	cs.PrependReactor("list", "networkpolicies", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, fmt.Errorf("forbidden")
+	})
+	cfg := &Config{
+		BasePath:         dir,
+		Interrupted:      new(atomic.Bool),
+		TargetNamespaces: []string{ns},
+		Client:           &kube.Client{Clientset: cs},
+	}
+
+	if err := (&NetworkPolicies{}).Run(context.Background(), cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	nsDir := filepath.Join(dir, "network-policies", "ns="+ns)
+	npYAML := mustRead(t, filepath.Join(nsDir, "networkpolicies.yaml"))
+	if !strings.Contains(npYAML, "forbidden") {
+		t.Errorf("networkpolicies.yaml should be a list error, got %q", npYAML)
+	}
+	for _, name := range []string{"namespace.yaml", "pods-show-labels.txt", "services.yaml"} {
+		if _, err := os.Stat(filepath.Join(nsDir, name)); err != nil {
+			t.Errorf("missing %s after list error: %v", name, err)
+		}
+	}
+	summary := mustRead(t, filepath.Join(dir, "network-policies", "summary.txt"))
+	if !strings.Contains(summary, "unavailable") {
+		t.Errorf("summary should mark list failure, got %q", summary)
+	}
+	if strings.Contains(summary, "NetworkPolicy count: 0") {
+		t.Error("summary must not treat a failed list as zero policies")
 	}
 }

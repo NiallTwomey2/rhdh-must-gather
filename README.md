@@ -134,7 +134,6 @@ Usage: ./must_gather [params...]
   --without-route               Skip OpenShift route collection
   --without-ingress             Skip Kubernetes ingress collection
   --without-namespace-inspect   Skip deep Namespace inspect
-  --without-network-policies    Skip NetworkPolicy diagnostic collection
 
 
   > You can also choose to enable optional collectors:
@@ -210,7 +209,6 @@ Usage: ./must_gather [params...]
 | `--without-route` | Skip OpenShift route collection | For non-OpenShift clusters or when routes are not relevant |
 | `--without-ingress` | Skip Kubernetes ingress collection | When ingresses are not used for RHDH access |
 | `--without-namespace-inspect` | Skip deep Namespace inspect | **Not recommended** as it removes OMC compatibility. Use only for minimal/quick collections |
-| `--without-network-policies` | Skip NetworkPolicy diagnostic collection | When NetworkPolicy data is not needed, or for a faster gather |
 
 #### Namespace filtering
 
@@ -255,6 +253,9 @@ Usage: ./must_gather [params...]
 ├── network-policies/               # NetworkPolicy diagnostics (collected by default)
 │   ├── detected-namespaces.txt
 │   ├── summary.txt
+│   ├── cluster/                    # Cluster-scoped AdminNetworkPolicy / ClusterNetworkPolicy if present
+│   │   ├── adminnetworkpolicies.yaml
+│   │   └── clusternetworkpolicies.yaml
 │   ├── peer-namespaces/
 │   └── ns=[namespace]/
 │       ├── networkpolicies.yaml

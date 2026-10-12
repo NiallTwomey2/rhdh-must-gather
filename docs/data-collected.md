@@ -121,10 +121,11 @@ RHDH can be deployed using the Orchestrator flavor, which includes additional in
 - **Pod labels and namespace labels** used by NetworkPolicy selectors (`pods-show-labels.txt`, `namespace.yaml`)
 - **Services** in those namespaces (ports such as 7007, 5432, 9464)
 - **Peer namespaces** commonly referenced by `namespaceSelector` (OpenShift ingress/monitoring, Knative, GKE monitoring)
+- **Cluster-scoped AdminNetworkPolicy / ClusterNetworkPolicy** under `cluster/` when those APIs exist (missing APIs are skipped; permission errors are recorded without failing the gather)
 - **summary.txt** explaining how to match policies to pods and labels when troubleshooting connectivity failures
 - Auto-detects Helm, Operator, and Orchestrator namespaces; honours `--namespaces`
 - Uses the Kubernetes API (client-go); does not require `oc adm inspect`
-- **Can be skipped** with `--without-network-policies`
+- Always collected (no `--without-network-policies` flag)
 
 ### Namespace inspect (collected by default)
 - **Deep namespace resource inspection** using `oc adm inspect namespace` (included by default)

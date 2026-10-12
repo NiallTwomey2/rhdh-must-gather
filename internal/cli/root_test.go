@@ -77,8 +77,8 @@ func TestBuildScriptList_ExcludeAll(t *testing.T) {
 	opts := &gatherOptions{}
 	scripts := buildScriptList(cmd, opts)
 
-	if len(scripts) != 0 {
-		t.Errorf("got %d scripts, want 0: %v", len(scripts), scripts)
+	if len(scripts) != 1 || scripts[0] != "network-policies" {
+		t.Errorf("got %v, want [network-policies]", scripts)
 	}
 }
 
